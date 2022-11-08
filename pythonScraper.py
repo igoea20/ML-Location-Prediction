@@ -14,8 +14,7 @@ bathResultString = []
 propertyTypeResultString = []
 priceResultString = []
 descriptionResultsString = []
-while count < 2:
-    print(count)
+while count < 3:
     count = count + 1
     response = requests.get(url)
     soup = BeautifulSoup(response.content, 'html.parser')
@@ -79,7 +78,7 @@ while count < 2:
             else:
                 priceResultString.append('')
 
-    url = "https://www.daft.ie/property-for-rent/dublin-city?pageSize=20&from=" + str(count + 20)
+    url = "https://www.daft.ie/property-for-rent/dublin-city?pageSize=20&from=" + str(count*20)
 
 columnsValues  = ['Address', 'Bedroom', 'Bathroom', 'PropertyType', 'Price']
 
