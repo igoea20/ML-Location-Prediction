@@ -3,10 +3,44 @@ import csv
 import nltk
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from sklearn.model_selection import train_test_split
 import string
 import re
+from collections import Counter
+import random
+from sklearn import svm
 
+
+
+# takes in the price per month and returns a score between 0 and 1
+def price_labels(prices):
+
+    labels = []
+
+    for price in prices:
+        labels.append(random.randint(0,1))
+
+        """
+        if(int(price) <1000):
+            labels.append(0)
+        elif(int(price) < 2000):   #1000 < price < 2000
+            labels.append(1)
+        elif(int(price) <2500):    #2000 < price < 2500
+            labels.append(2)
+        elif(int(price) < 3000):   #2500 < price < 3000
+            labels.append(3)
+        elif(int(price) < 3500):   #3000 < price < 3500
+            labels.append(4)
+        elif(int(price) < 5000):   #3500 < price < 5000
+            labels.append(5)
+        else:                  # 5000 < price
+            labels.append(6)
+
+        """
+
+
+    return labels
 
 
 def text_process(text):
@@ -49,31 +83,45 @@ def text_process(text):
 def tf_idf(processed_text):
 
     vectoriser = TfidfVectorizer()
-
     X = vectoriser.fit_transform(processed_text)
-    #print(vectoriser.get_feature_names_out())
 
     return vectoriser
 
 
 def test_processing():
     descriptions = []
+    prices = []
     processed_text = []
-    with open('testing.csv','r') as csvfile:
+    with open('data_test1.csv','r') as csvfile:
         c = csv.reader(csvfile, delimiter = ',')
 
         next(csvfile)
         for row in c:
-            descriptions.append(str(row[6]))
+            if str(row[6])!= '':
+                processed_text.append(' '.join(text_process(str(row[6]))))
+                prices.append(str(row[5]))
+    labels = price_labels(prices)
 
-    for description in descriptions:
-        if description!= '':
-            processed_text.append(' '.join(text_process(description)))
-
-    print('Number of non empty descriptions: ', len(processed_text))
-
-
-    vectoriser = tf_idf(processed_text)
+    documents = [(processed_text[idx], labels[idx]) for idx, text in enumerate(processed_text)]
 
 
-test_processing()
+
+    train, test = train_test_split(documents, test_size = 0.2, random_state=42)
+
+
+    X_train = [words for (words, label) in train]
+    X_test = [words for (words, label) in test]
+    y_train = [label for (words, label) in train]
+    y_test = [label for (words, label) in test]
+
+
+    tfidf_vec = TfidfVectorizer(min_df = 1, token_pattern = r'[a-zA-Z]+')
+    X_train_bow = tfidf_vec.fit_transform(X_train) # fit train
+    X_test_bow = tfidf_vec.transform(X_test) # transform test
+
+
+
+    model_svm = svm.SVC(C=8.0, kernel='linear')
+    model_svm.fit(X_train_bow, y_train)
+
+    predictions = model_svm.predict(X_test_bow)
