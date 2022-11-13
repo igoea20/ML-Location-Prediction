@@ -13,7 +13,9 @@ bedResultString = []
 bathResultString = []
 propertyTypeResultString = []
 priceResultString = []
+priceResultOriginal = []
 descriptionResultsString = []
+dublinRegionString = []
 while count < 3:
     count = count + 1
     response = requests.get(url)
@@ -42,17 +44,32 @@ while count < 3:
         bathroom = soup.find_all('p', attrs={'data-testid':'baths'})
         property_type = soup.find_all('p', attrs={'data-testid':'property-type'})
 
-        descriptionResults = re.search('>(.*)<', str(description))
+        descriptionResults = re.search('>(.*)</div>', str(description))
         addressResult = re.search('>(.*)<', str(address))
 
         #don't save entries that don't have an address
         if addressResult != None:
             addressResultString.append(str(addressResult.group(1)))
+            
+            mystring = str(description)
+            keyword2="\"description\">"
 
-            if descriptionResults != None:
-                descriptionResultsString.append(str(descriptionResults.group(1)))
-            else:
-                descriptionResultsString.append('')
+            before_keyword2, keyword2, after_keyword2 = mystring.partition(keyword2)
+            #print(after_keyword2)
+
+            #descriptionFull = re.search('(.*)</div>', after_keyword2) #splits word from comma
+
+            #print("---")
+            keyword2="</div>"
+
+            before_keyword2, keyword2, after_keyword2 = after_keyword2.partition(keyword2)
+
+            descriptionResultsString.append(before_keyword2)
+    
+            # if descriptionResults != None:
+            #     descriptionResultsString.append(str(descriptionResults.group(1)))
+            # else:
+            #     descriptionResultsString.append('')
 
             bedResult = re.search('>(.*)Bed<', str(bedroom))
             if bedResult != None:
@@ -74,17 +91,61 @@ while count < 3:
 
             priceResult = re.search('>(.*)<!-- -->', str(price))
             if priceResult != None:
-                priceResultString.append(str(priceResult.group(1)))
+                priceResultOriginal.append(str(priceResult.group(1)))
             else:
-                priceResultString.append('')
+                priceResultOriginal.append('')
 
+            numFlag = True
+            priceResultNumber = re.search('€(.*) per', str(priceResult))
+            priceResultType = re.search('per (.*)<!-- -->', str(priceResult))
+            if (priceResultType.group(1) == 'month'): 
+                priceResultIntString = str(priceResultNumber.group(1))
+            else:
+                priceResultIntString = str(int(priceResultNumber.group(1)) * 4)
+                numFlag = False
+                priceResultString.append(priceResultIntString)
+
+            #Remove ',' character
+            if len(priceResultIntString) > 3:
+                if (numFlag == True):
+                    priceResultTemp1 = re.search('(.*),', priceResultIntString)
+                    priceResultTemp2 = re.search(',(.*)', priceResultIntString)
+                    priceResultString.append((priceResultTemp1.group(1)) + str(priceResultTemp2.group(1)))
+            else:
+                priceResultString.append(priceResultIntString)
+
+            mystring = str(addressResult.group(1))
+            keyword = "Dublin"
+
+            before_keyword, keyword, after_keyword = mystring.partition(keyword) #splits address into before and after keyword "Dublin"
+
+            if after_keyword != '': #If there is a part after the keyword, i.e., postcode exists
+
+                wordArray = after_keyword.split() #split the address into its constituent words
+            
+                firstNum = wordArray[0] #First number found after "Dublin" keyword
+                dublinRegion = re.search('(.*),', firstNum) #splits word from comma
+                if dublinRegion == None: #If it returns nothing, then theres no comma
+                    dublinRegionString.append(firstNum) #adds firstnum instead
+                else:
+                    dublinRegionString.append(dublinRegion.group(1)) #otherwise use the value without the comma
+            else:
+                dublinRegionString.append("Other") #otherwise its just a random other place
+            
     url = "https://www.daft.ie/property-for-rent/dublin-city?pageSize=20&from=" + str(count*20)
 
 columnsValues  = ['Address', 'Bedroom', 'Bathroom', 'PropertyType', 'Price']
 
-dict = {'Address': addressResultString, 'Bedroom': bedResultString,'Bathroom': bathResultString,
-            'PropertyType': propertyTypeResultString, 'Price': priceResultString, 'Description': descriptionResultsString}
+dict = {'Address': addressResultString, 'dublinRegionString': dublinRegionString, 'Bedroom': bedResultString,'Bathroom': bathResultString,
+            'PropertyType': propertyTypeResultString, 'originalPrice': priceResultOriginal, 'Price': priceResultString, 'Description': descriptionResultsString}
 
 df = pd.DataFrame(dict)
 
-df.to_csv('testing.csv')
+#print(priceResultString)
+
+# print(priceResultNumber.group(1))
+# priceResultNumber = str(priceResultNumber)
+#priceResultNumber.str.replace(',', '')
+# print(priceResultNumber.group(1))
+
+df.to_csv('CleanedScraperOutput.csv')
