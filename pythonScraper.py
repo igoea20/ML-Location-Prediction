@@ -16,7 +16,7 @@ priceResultString = []
 priceResultOriginal = []
 descriptionResultsString = []
 dublinRegionString = []
-while count < 3:
+while count < 10:
     count = count + 1
     response = requests.get(url)
     soup = BeautifulSoup(response.content, 'html.parser')
@@ -50,7 +50,7 @@ while count < 3:
         #don't save entries that don't have an address
         if addressResult != None:
             addressResultString.append(str(addressResult.group(1)))
-            
+
             mystring = str(description)
             keyword2="\"description\">"
 
@@ -65,7 +65,7 @@ while count < 3:
             before_keyword2, keyword2, after_keyword2 = after_keyword2.partition(keyword2)
 
             descriptionResultsString.append(before_keyword2)
-    
+
             # if descriptionResults != None:
             #     descriptionResultsString.append(str(descriptionResults.group(1)))
             # else:
@@ -98,10 +98,12 @@ while count < 3:
             numFlag = True
             priceResultNumber = re.search('€(.*) per', str(priceResult))
             priceResultType = re.search('per (.*)<!-- -->', str(priceResult))
-            if (priceResultType.group(1) == 'month'): 
+            if (priceResultType.group(1) == 'month'):
                 priceResultIntString = str(priceResultNumber.group(1))
             else:
-                priceResultIntString = str(int(priceResultNumber.group(1)) * 4)
+                priceResultIntString = str(priceResultNumber.group(1))
+                temp = priceResultIntString.split(',')
+                priceResultIntString = str(int(''.join(temp))*4)
                 numFlag = False
                 priceResultString.append(priceResultIntString)
 
@@ -122,7 +124,7 @@ while count < 3:
             if after_keyword != '': #If there is a part after the keyword, i.e., postcode exists
 
                 wordArray = after_keyword.split() #split the address into its constituent words
-            
+
                 firstNum = wordArray[0] #First number found after "Dublin" keyword
                 dublinRegion = re.search('(.*),', firstNum) #splits word from comma
                 if dublinRegion == None: #If it returns nothing, then theres no comma
@@ -131,7 +133,7 @@ while count < 3:
                     dublinRegionString.append(dublinRegion.group(1)) #otherwise use the value without the comma
             else:
                 dublinRegionString.append("Other") #otherwise its just a random other place
-            
+
     url = "https://www.daft.ie/property-for-rent/dublin-city?pageSize=20&from=" + str(count*20)
 
 columnsValues  = ['Address', 'Bedroom', 'Bathroom', 'PropertyType', 'Price']
