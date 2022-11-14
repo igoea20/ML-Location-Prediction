@@ -8,36 +8,24 @@ from sklearn.model_selection import train_test_split
 import string
 import re
 from collections import Counter
+import matplotlib.pyplot as plt
 import random
 from sklearn import svm
 
 
 
-# takes in the price per month and returns a score between 0 and 1
-def price_labels(prices):
+# takes in the Dublin postcode and returns the score
+def address_labels(address):
 
     labels = []
 
-    for price in prices:
-        labels.append(random.randint(0,1))
-
-        """
-        if(int(price) <1000):
+    for label in address:
+        if(label == 'Other' or label == ''):
             labels.append(0)
-        elif(int(price) < 2000):   #1000 < price < 2000
-            labels.append(1)
-        elif(int(price) <2500):    #2000 < price < 2500
-            labels.append(2)
-        elif(int(price) < 3000):   #2500 < price < 3000
-            labels.append(3)
-        elif(int(price) < 3500):   #3000 < price < 3500
-            labels.append(4)
-        elif(int(price) < 5000):   #3500 < price < 5000
-            labels.append(5)
-        else:                  # 5000 < price
-            labels.append(6)
-
-        """
+        elif(label =='6w' or label == '6W'):
+            labels.append(-1)
+        else:
+            labels.append(int(label))
 
 
     return labels
@@ -90,21 +78,25 @@ def tf_idf(processed_text):
 
 def test_processing():
     descriptions = []
-    prices = []
+    address = []
     processed_text = []
-    with open('data_test1.csv','r') as csvfile:
+    with open('CleanedScraperOutput.csv','r') as csvfile:
         c = csv.reader(csvfile, delimiter = ',')
 
         next(csvfile)
         for row in c:
-            if str(row[6])!= '':
-                processed_text.append(' '.join(text_process(str(row[6]))))
-                prices.append(str(row[5]))
-    labels = price_labels(prices)
+            processed_text.append(' '.join(text_process(str(row[6]))))
+            address.append(str(row[2]))
+    print(len(processed_text))
+    labels = address_labels(address)
+
+    plt.hist(labels, 25)
+    plt.xlabel('Post Code (0=Dublin, -1=6W)')
+    plt.title('Distribution of Dublin Postcode data')
+    plt.xticks([num for num in range(-1,25)], [str(num) for num in range(-1,25)])
+    plt.show()
 
     documents = [(processed_text[idx], labels[idx]) for idx, text in enumerate(processed_text)]
-
-
 
     train, test = train_test_split(documents, test_size = 0.2, random_state=42)
 
@@ -125,3 +117,9 @@ def test_processing():
     model_svm.fit(X_train_bow, y_train)
 
     predictions = model_svm.predict(X_test_bow)
+    print(y_test)
+    print(list(predictions))
+    print('Accuracy: ', 100*len([value for idx, value in enumerate(predictions) if value == y_test[idx]])/len(y_test))
+
+
+test_processing()
