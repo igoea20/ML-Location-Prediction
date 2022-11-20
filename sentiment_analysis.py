@@ -48,22 +48,28 @@ def text_process(text):
     words = set(nltk.corpus.words.words())
     stemmer = WordNetLemmatizer()
 
-    #gets rid of any urls in the text
-    text = re.sub(r'\w+:\/{2}[\d\w-]+(\.[\d\w-]+)*(?:(?:\/[^\s/]*))*', '', text)
-    #removes punctuation from text
-    nopunc = [char for char in text if char not in string.punctuation]
-    #removes the numbers from text
-    nopunc = ''.join([i for i in nopunc if not i.isdigit()])
-    #removes the stopwords from text
-    nopunc =  [word.lower() for word in nopunc.split() if word not in stopwords.words('english')]
-    #removes all non english words from text
-    nopunc = [word for word in nopunc if word in words]
-    #removes all words that were in the search  query
-    nopunc = [word for word in nopunc if word != 'this']
-    #returns the stemmed text
-    nopunc = [stemmer.lemmatize(word) for word in nopunc]
+    cleaned = []
 
-    return nopunc
+    for entry in text:
+
+        #gets rid of any urls in the text
+        entry = re.sub(r'\w+:\/{2}[\d\w-]+(\.[\d\w-]+)*(?:(?:\/[^\s/]*))*', '', entry)
+        #removes punctuation from entry
+        nopunc = [char for char in entry if char not in string.punctuation]
+        #removes the numbers from entry
+        nopunc = ''.join([i for i in nopunc if not i.isdigit()])
+        #removes the stopwords from entry
+        nopunc =  [word.lower() for word in nopunc.split() if word not in stopwords.words('english')]
+        #removes all non english words from entry
+        nopunc = [word for word in nopunc if word in words]
+        #removes all words that were in the search  query
+        nopunc = [word for word in nopunc if word != 'this']
+        #returns the stemmed entry
+        nopunc = [stemmer.lemmatize(word) for word in nopunc]
+
+        cleaned.append(' '.join(nopunc))
+
+    return cleaned
 
 
 ## should take in a list of strings containing all the vectors. These need to be cleaned first. Should probably include
@@ -76,50 +82,65 @@ def tf_idf(processed_text):
     return vectoriser
 
 
-def test_processing():
+def test_processing(fileName):
     descriptions = []
+    prices = []
     address = []
     processed_text = []
-    with open('CleanedScraperOutput.csv','r') as csvfile:
-        c = csv.reader(csvfile, delimiter = ',')
+    labels = []
 
-        next(csvfile)
-        for row in c:
-            processed_text.append(' '.join(text_process(str(row[6]))))
-            address.append(str(row[2]))
-    print(len(processed_text))
-    labels = address_labels(address)
+    if(fileName==''):
+        print('No pre-processed file given.')
+        with open('CleanedScraperOutput.csv','r') as csvfile:
+            c = csv.reader(csvfile, delimiter = ',')
+            next(csvfile)
+            for row in c:
+                processed_text.append(str(row[8]))
+                prices.append(int(row[7]))
+                address.append(str(row[2]))
+        processed_text = text_process(processed_text)
+        labels = address_labels(address)
+        print('finished text processing and labelling')
 
-    plt.hist(labels, 25)
-    plt.xlabel('Post Code (0=Dublin, -1=6W)')
-    plt.title('Distribution of Dublin Postcode data')
-    plt.xticks([num for num in range(-1,25)], [str(num) for num in range(-1,25)])
-    plt.show()
+        ## ensures there are at least 2 entries for each dublin area
+        size_labels = [len([value for value in labels if value == area]) for area in range(-1,25)]
+        for idx, num in enumerate(size_labels):
+            if(num<2):
+                for i, label in enumerate(labels):
+                    if(label == idx - 1):
+                        labels.pop(i)
+                        processed_text.pop(i)
+    else:
+        print('Reading from pre-processed file: ', fileName)
+        with open(fileName,'r') as csvfile:
+            c = csv.reader(csvfile, delimiter = ',')
+            next(csvfile)
+            for row in c:
+                processed_text.append(row[1])
+                labels.append(int(row[2]))
 
-    documents = [(processed_text[idx], labels[idx]) for idx, text in enumerate(processed_text)]
 
-    train, test = train_test_split(documents, test_size = 0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(processed_text, labels, test_size=0.2, stratify=labels)
 
-
-    X_train = [words for (words, label) in train]
-    X_test = [words for (words, label) in test]
-    y_train = [label for (words, label) in train]
-    y_test = [label for (words, label) in test]
+    if(fileName == ''):
+        dict = {'Description': processed_text, 'AddressLabel': labels}
+        df = pd.DataFrame(dict)
+        df.to_csv('ProcessedText.csv')
 
 
     tfidf_vec = TfidfVectorizer(min_df = 1, token_pattern = r'[a-zA-Z]+')
     X_train_bow = tfidf_vec.fit_transform(X_train) # fit train
     X_test_bow = tfidf_vec.transform(X_test) # transform test
-
-
-
     model_svm = svm.SVC(C=8.0, kernel='linear')
     model_svm.fit(X_train_bow, y_train)
-
     predictions = model_svm.predict(X_test_bow)
-    print(y_test)
-    print(list(predictions))
-    print('Accuracy: ', 100*len([value for idx, value in enumerate(predictions) if value == y_test[idx]])/len(y_test))
+
+    print(model_svm.score(X_test_bow, y_test))
 
 
-test_processing()
+
+##if you have new data and need to pre-process
+test_processing('')
+
+## if you have already performed the pre-processing
+test_processing('ProcessedText.csv')
