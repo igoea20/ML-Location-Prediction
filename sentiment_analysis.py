@@ -82,11 +82,38 @@ def tf_idf(processed_text):
     return vectoriser
 
 
-def test_processing(fileName):
+## takes in the already processed training data and trains the svm. Returns the trained svm and tfidf.
+def train_dataset(processed_training_data, labels):
+
+    X_train = processed_training_data
+    y_train = labels
+
+    tfidf_vec = TfidfVectorizer(min_df = 1, token_pattern = r'[a-zA-Z]+')
+    X_train_bow = tfidf_vec.fit_transform(X_train) # fit train
+    model_svm = svm.SVC(C=8.0, kernel='linear')
+    model_svm.fit(X_train_bow, y_train)
+    #predictions = model_svm.predict(X_train_bow)
+
+    return model_svm, tfidf_vec
+
+
+#takes in the processed text and a pretrained svm and tfidf and predicts the address labels
+def generate_svm_scores(testing_text, model_svm, tfidf):
+
+    X_test_bow = tfidf.transform(testing_text) # fit train
+    predictions = model_svm.predict(X_test_bow) #predictions = model_svm.predict(X_test_bow)
+
+    return predictions
+
+#takes in either a pre-processed text file for the training data (or an empty file if not pre-processed),
+# and takes in the testing data to predict the labels for the test data
+## INPUT::  1. Optional filename of preprocessed data 2. list of descriptions of properties
+## OUTPUT::  Predicted labels for the properties
+def predict_address(fileName, test_data):
     descriptions = []
     prices = []
     address = []
-    processed_text = []
+    processed_training_data = []
     labels = []
 
     if(fileName==''):
@@ -95,52 +122,76 @@ def test_processing(fileName):
             c = csv.reader(csvfile, delimiter = ',')
             next(csvfile)
             for row in c:
-                processed_text.append(str(row[8]))
+                processed_training_data.append(str(row[8]))
                 prices.append(int(row[7]))
                 address.append(str(row[2]))
-        processed_text = text_process(processed_text)
+        processed_training_data = text_process(processed_training_data)
         labels = address_labels(address)
         print('finished text processing and labelling')
 
         ## ensures there are at least 2 entries for each dublin area
         size_labels = [len([value for value in labels if value == area]) for area in range(-1,25)]
+        adjusted_labels = labels
         for idx, num in enumerate(size_labels):
             if(num<2):
                 for i, label in enumerate(labels):
                     if(label == idx - 1):
-                        labels.pop(i)
-                        processed_text.pop(i)
+                        adjusted_labels.pop(i)
+                        processed_training_data.pop(i)
+        labels = adjusted_labels
+
+        ## write this data to file for next time
+
+        dict = {'Description': processed_training_data, 'AddressLabel': adjusted_labels}
+        df = pd.DataFrame(dict)
+        df.to_csv('ProcessedText.csv')
+
     else:
         print('Reading from pre-processed file: ', fileName)
         with open(fileName,'r') as csvfile:
             c = csv.reader(csvfile, delimiter = ',')
             next(csvfile)
             for row in c:
-                processed_text.append(row[1])
+                processed_training_data.append(row[1])
                 labels.append(int(row[2]))
 
+    if(test_data!=[]):
 
-    X_train, X_test, y_train, y_test = train_test_split(processed_text, labels, test_size=0.2, stratify=labels)
-
-    if(fileName == ''):
-        dict = {'Description': processed_text, 'AddressLabel': labels}
-        df = pd.DataFrame(dict)
-        df.to_csv('ProcessedText.csv')
+        model_svm, tfidf = train_dataset(processed_training_data, labels)
+        processed_test_data = text_process(test_data)
+        predicted_labels = generate_svm_scores(processed_test_data, model_svm, tfidf)
 
 
-    tfidf_vec = TfidfVectorizer(min_df = 1, token_pattern = r'[a-zA-Z]+')
-    X_train_bow = tfidf_vec.fit_transform(X_train) # fit train
-    X_test_bow = tfidf_vec.transform(X_test) # transform test
-    model_svm = svm.SVC(C=8.0, kernel='linear')
-    model_svm.fit(X_train_bow, y_train)
-    predictions = model_svm.predict(X_test_bow)
-
-    print(model_svm.score(X_test_bow, y_test))
+        return predicted_labels
 
 
 
-##if you have new data and need to pre-process
-test_processing('')
+#################### EXAMPLE USAGE ###################
 
-## if you have already performed the pre-processing
-test_processing('ProcessedText.csv')
+
+##### Option 1.
+##if you have new data and just want to preprocess it for the future
+predict_address('', [])
+
+
+##### Option 2.
+## I have data to get labels for in the file "testing.csv"
+## (you just need the descriptions so you could get these any way you like
+## this is just how i did it)
+test_data = []
+address = []
+with open('testing.csv','r') as csvfile:
+    c = csv.reader(csvfile, delimiter = ',')
+    for row in c:
+        test_data.append(str(row[8]))
+        address.append(str(row[2]))   ## this line was just to check the predictions but isnt needed
+
+## I then pass the descriptions as a list to the pipeline, along with the filename
+## containing my already processed training data.
+predictions = predict_address('ProcessedText.csv', test_data)
+## predictions is now a list of the predicted addresses for the test data
+
+
+##### Option 3.
+## I have new training data and want to simultaneously predict some labels
+new_predictions = predict_address('', test_data)
