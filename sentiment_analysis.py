@@ -12,7 +12,8 @@ import matplotlib.pyplot as plt
 import random
 from sklearn import svm
 
-
+poppedindexes = [] 
+test_data = []
 
 # takes in the Dublin postcode and returns the score
 def address_labels(address):
@@ -27,7 +28,6 @@ def address_labels(address):
         else:
             labels.append(int(label))
 
-
     return labels
 
 
@@ -35,13 +35,10 @@ def text_process(text):
     """
     Performs text processing on the english language. Removes punctuation, urls, numbers,
     non-english words, the search query and stopwords from the text. Then performs lemmatising.
-
     Parameters:
         text (str): the text to process
-
     Returns:
         nopunc ([str]): the processed text
-
     """
 
     #sets the english words and the stemmer being used
@@ -113,6 +110,7 @@ def predict_address(fileName, test_data):
     descriptions = []
     prices = []
     address = []
+    addressFull = []
     processed_training_data = []
     labels = []
 
@@ -125,6 +123,7 @@ def predict_address(fileName, test_data):
                 processed_training_data.append(str(row[8]))
                 prices.append(int(row[7]))
                 address.append(str(row[2]))
+                addressFull.append(str(row[1]))
         processed_training_data = text_process(processed_training_data)
         labels = address_labels(address)
         print('finished text processing and labelling')
@@ -138,11 +137,13 @@ def predict_address(fileName, test_data):
                     if(label == idx - 1):
                         adjusted_labels.pop(i)
                         processed_training_data.pop(i)
+                        addressFull.pop(i)
+                        poppedindexes.append(i)
+                        #print('i:', i)
         labels = adjusted_labels
 
         ## write this data to file for next time
-
-        dict = {'Description': processed_training_data, 'AddressLabel': adjusted_labels}
+        dict = {'Description': processed_training_data, 'AddressLabel': adjusted_labels, 'Address': addressFull}
         df = pd.DataFrame(dict)
         df.to_csv('ProcessedText.csv')
 
@@ -156,42 +157,111 @@ def predict_address(fileName, test_data):
                 labels.append(int(row[2]))
 
     if(test_data!=[]):
-
+        # pop pop
+        for index in poppedindexes:
+            test_data.remove(test_data[index])
+        
+        #training
         model_svm, tfidf = train_dataset(processed_training_data, labels)
         processed_test_data = text_process(test_data)
+        print('length of processed_test_data: ', len(processed_test_data))
         predicted_labels = generate_svm_scores(processed_test_data, model_svm, tfidf)
 
 
         return predicted_labels
 
 
+def neuralData():
+    #Read data from original scraper, add it to new csv file
+    print('Reading from scraped data: CleanedScraperOutput.csv')
+    results = pd.read_csv('CleanedScraperOutput.csv')
+    print('Number of lines in CleanedScraperOutput CSV: ', len(results))
+    
+    print('Converting CSV columns into lists:')
+    address = results['Address'].tolist()
+    location = results['dublinRegionString'].tolist()
+    location = [str(s).replace('Other', '0') for s in location]
+    location = [str(s).replace('6W', '-1') for s in location]
+    location = [str(s).replace('6w', '1') for s in location]
+    location = [str(s).replace('nan', '0') for s in location] ###<===============why not cuaght before !?;""
+    location = [int(t) for t in location]
+    
+    bedroom = results['Bedroom'].tolist()
+    bathroom = results['Bathroom'].tolist()
+    propertyType = results['PropertyType'].tolist() #Need to convert the three different types into numbers
+    propertyType = [s.replace('House', '2') for s in propertyType]
+    propertyType = [s.replace('Apartment', '1') for s in propertyType]
+    propertyType = [s.replace('Studio', '0') for s in propertyType]
+    propertyType = [int(t) for t in propertyType]
+    # for i in range(len(propertyType)):
+    #     if (propertyType[i] == 'House'):
+    #         propertyType2.append(2)
+    #     elif (propertyType[i] == 'Apartment'):
+    #         propertyType2.append(1)
+    #     else:
+    #         propertyType2.append(0)
+    #print(propertyType2)
+    
+    price = results['Price'].tolist()
+    print('...Done.')
+    
+    #Read and/or get sentiment analysis class, add it in
+    print('Receiving predictions...')
+    predict_address('', [])
+    predictions = predict_address('ProcessedText.csv', test_data)
+    print(predictions)
+    print('Reading from processed text and utilising SVM model for classification: CleanedScraperOutput.csv')
+    results = pd.read_csv('ProcessedText.csv')
+    print('Number of lines in ProcessedText CSV: ', len(results))
+    processedTextAddress = results['Address'].tolist()
+    processedTextAddressLabel = results['AddressLabel'].tolist()
+    processedText = results['Description'].tolist()
+    print('...Done.')
+    
 
-#################### EXAMPLE USAGE ###################
+    print('\nTraining SVM')
+    print('Determine if entries are equivalent')
+    print('Size of address list:', len(address))
+    print('Size of processed address list:', len(processedTextAddress))
+    
+    if len(address) != len(processedTextAddress):
+        print('\nfiltering out miscellaneous addresses..')
+        print(poppedindexes)
+        poppedindexes.sort()
+        print(type(address))
+        for index in poppedindexes:
+            print(index)
+            print(address[index])
+            address.remove(address[index])
+            location.remove(location[index])
+            bedroom.remove(bedroom[index])
+            bathroom.remove(bathroom[index])
+            propertyType.remove(propertyType[index])
+            price.remove(price[index])
+        print('Size of address list:', len(address))
+        print('Size of processed address list:', len(processedTextAddress))   
+        print('Re-determine if entries are equivalent')
+        print('Size of address list:', len(address))
+        print('Size of processed address list:', len(processedTextAddress))
 
+        
+    print('Length of predictions: ', len(predictions))
+    print('...Done.')
 
-##### Option 1.
-##if you have new data and just want to preprocess it for the future
-predict_address('', [])
+    
+    ## write this data to file for next time
+    print('Placing data into new CSV file')
+    dict = {'Address': address, 'Location': location, 'Bedroom': bedroom, 'Bathroom': bathroom, 'PropertyType': propertyType, 'Price': price, 'Predictions': predictions}
+    df = pd.DataFrame(dict)
+    df.to_csv('neuralData.csv')
+    print('...Done.')
 
-
-##### Option 2.
-## I have data to get labels for in the file "testing.csv"
-## (you just need the descriptions so you could get these any way you like
-## this is just how i did it)
-test_data = []
-address = []
-with open('testing.csv','r') as csvfile:
+with open('CleanedScraperOutput.csv','r') as csvfile:
     c = csv.reader(csvfile, delimiter = ',')
     for row in c:
-        test_data.append(str(row[8]))
-        address.append(str(row[2]))   ## this line was just to check the predictions but isnt needed
 
-## I then pass the descriptions as a list to the pipeline, along with the filename
-## containing my already processed training data.
-predictions = predict_address('ProcessedText.csv', test_data)
-## predictions is now a list of the predicted addresses for the test data
+        if row[8] != 'Description':
+            test_data.append(str(row[8]))
 
-
-##### Option 3.
-## I have new training data and want to simultaneously predict some labels
-new_predictions = predict_address('', test_data)
+#Create new CSV file for neural data
+neuralData()
