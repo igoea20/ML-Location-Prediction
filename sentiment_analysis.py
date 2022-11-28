@@ -184,7 +184,7 @@ def train_dataset(processed_training_data, labels, df, c):
 
     tfidf_vec = TfidfVectorizer(min_df = df, token_pattern = r'[a-zA-Z]+')  #1
     X_train_bow = tfidf_vec.fit_transform(X_train) # fit train
-    model_svm = svm.SVC(C=c, kernel='linear')  #8
+    model_svm = svm.LinearSVC(C=c)  #8
     model_svm.fit(X_train_bow, y_train)
 
     return model_svm, tfidf_vec, X_train_bow
