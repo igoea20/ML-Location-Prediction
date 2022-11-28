@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import random
 from sklearn import svm
 
-poppedindexes = [] 
+poppedindexes = []
 test_data = []
 
 # takes in the Dublin postcode and returns the score
@@ -21,12 +21,19 @@ def address_labels(address):
     labels = []
 
     for label in address:
-        if(label == 'Other' or label == ''):
-            labels.append(0)
-        elif(label =='6w' or label == '6W'):
-            labels.append(-1)
-        else:
-            labels.append(int(label))
+        if(label == 'Other' or label == '' or label == '6' or label == '14' or label == '16' or label == '18'):
+            labels.append(5)
+        elif(label =='6w' or label == '6W' or label == '12' or label == '10' or label == '20' or label == '22'):
+            labels.append(4)
+        elif(label == '1' or label == '2' or label == '4' or label == '7' or label == '8'):
+            labels.append(1)
+        elif(label == '11' or label == '15' or label == '9' or label == '17'):
+            labels.append(2)
+        elif(label == '3' or label == '5' or label == '13'):
+            labels.append(3)
+        elif(label == '11' or label == '15' or label == '22' or label == '24'):
+            labels.append(6)
+
 
     return labels
 
@@ -160,7 +167,7 @@ def predict_address(fileName, test_data):
         # pop pop
         for index in poppedindexes:
             test_data.remove(test_data[index])
-        
+
         #training
         model_svm, tfidf = train_dataset(processed_training_data, labels)
         processed_test_data = text_process(test_data)
@@ -176,7 +183,7 @@ def neuralData():
     print('Reading from scraped data: CleanedScraperOutput.csv')
     results = pd.read_csv('CleanedScraperOutput.csv')
     print('Number of lines in CleanedScraperOutput CSV: ', len(results))
-    
+
     print('Converting CSV columns into lists:')
     address = results['Address'].tolist()
     location = results['dublinRegionString'].tolist()
@@ -185,7 +192,7 @@ def neuralData():
     location = [str(s).replace('6w', '1') for s in location]
     location = [str(s).replace('nan', '0') for s in location] ###<===============why not cuaght before !?;""
     location = [int(t) for t in location]
-    
+
     bedroom = results['Bedroom'].tolist()
     bathroom = results['Bathroom'].tolist()
     propertyType = results['PropertyType'].tolist() #Need to convert the three different types into numbers
@@ -201,14 +208,14 @@ def neuralData():
     #     else:
     #         propertyType2.append(0)
     #print(propertyType2)
-    
+
     price = results['Price'].tolist()
     print('...Done.')
-    
+
     #Read and/or get sentiment analysis class, add it in
     print('Receiving predictions...')
-    predict_address('', [])
-    predictions = predict_address('ProcessedText.csv', test_data)
+    predictions = predict_address('', test_data)
+    #predictions = predict_address('ProcessedText.csv', test_data)
     print(predictions)
     print('Reading from processed text and utilising SVM model for classification: CleanedScraperOutput.csv')
     results = pd.read_csv('ProcessedText.csv')
@@ -217,13 +224,13 @@ def neuralData():
     processedTextAddressLabel = results['AddressLabel'].tolist()
     processedText = results['Description'].tolist()
     print('...Done.')
-    
+
 
     print('\nTraining SVM')
     print('Determine if entries are equivalent')
     print('Size of address list:', len(address))
     print('Size of processed address list:', len(processedTextAddress))
-    
+
     if len(address) != len(processedTextAddress):
         print('\nfiltering out miscellaneous addresses..')
         print(poppedindexes)
@@ -239,16 +246,16 @@ def neuralData():
             propertyType.remove(propertyType[index])
             price.remove(price[index])
         print('Size of address list:', len(address))
-        print('Size of processed address list:', len(processedTextAddress))   
+        print('Size of processed address list:', len(processedTextAddress))
         print('Re-determine if entries are equivalent')
         print('Size of address list:', len(address))
         print('Size of processed address list:', len(processedTextAddress))
 
-        
+
     print('Length of predictions: ', len(predictions))
     print('...Done.')
 
-    
+
     ## write this data to file for next time
     print('Placing data into new CSV file')
     dict = {'Address': address, 'Location': location, 'Bedroom': bedroom, 'Bathroom': bathroom, 'PropertyType': propertyType, 'Price': price, 'Predictions': predictions}
