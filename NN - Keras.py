@@ -33,8 +33,8 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.pipeline import Pipeline
 
 #load dataset
-dataframe = pandas.read_csv("iris.csv", header=None)
-dataset = dataframe.values
+# dataframe = pandas.read_csv("neuralData.csv", header=None)
+# dataset = dataframe.values
 
 location = []
 bedroom = []
@@ -81,13 +81,15 @@ encoder.fit(Y)
 encoded_Y = encoder.transform(Y)
 # convert integers to dummy variables (i.e. one hot encoded)
 dummy_y = np_utils.to_categorical(encoded_Y)
- 
+print('dummy_y:', dummy_y)
+
 model = Sequential()
 # define baseline model
 def baseline_model():
 	# create model
 	model.add(Dense(8, input_dim=5, activation='relu'))
-	model.add(Dense(20, activation='softmax'))
+	model.add(Dense(32, activation='softmax'))
+	model.add(Dense(22, activation='softmax'))
 	# Compile model
 	model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 	return model
@@ -98,14 +100,19 @@ def baseline_model():
 # # Compile model
 # model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
-
-estimator = KerasClassifier(build_fn=baseline_model, epochs=200, batch_size=5, verbose=0)
+print('Starting training')
+estimator = KerasClassifier(build_fn=baseline_model, epochs=500, batch_size=16, verbose=0)
 #estimator = KerasClassifier(build_fn=model, epochs=200, batch_size=5, verbose=0)
 
-kfold = KFold(n_splits=10, shuffle=True)
-results = cross_val_score(estimator, X, dummy_y, cv=kfold)
-
+kfold = KFold(n_splits=5, shuffle=True)
+print('Start cross val score')
+results = cross_val_score(estimator, X, dummy_y, cv=kfold, verbose=1)
+print(results)
 
 yhat = model.predict(X)
-print(yhat)
+#print(*yhat)
+# print('Predictions')
+# b = np.zeros_like(yhat)
+# b[np.arange(len(yhat)), yhat.argmax(1)] = 1
+# print(*b)
 print("Baseline: %.2f%% (%.2f%%)" % (results.mean()*100, results.std()*100))

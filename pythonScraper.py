@@ -16,7 +16,7 @@ priceResultString = []
 priceResultOriginal = []
 descriptionResultsString = []
 dublinRegionString = []
-while count < 10:
+while count < 20:#10:
     count = count + 1
     response = requests.get(url)
     soup = BeautifulSoup(response.content, 'html.parser')
